@@ -54,3 +54,7 @@ npm run build --prefix backend
 npm run build --prefix frontend
 npm run lint --prefix frontend
 ```
+
+## License
+
+AGPL-3.0-only. See `LICENSE`.

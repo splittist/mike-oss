@@ -1,6 +1,7 @@
 {
   "name": "mike-backend",
   "version": "1.0.0",
+  "license": "AGPL-3.0-only",
   "private": true,
   "scripts": {
     "dev": "tsx watch src/index.ts",
