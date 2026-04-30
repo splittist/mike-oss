@@ -1,12 +1,17 @@
 /**
- * Cloudflare R2 storage utilities for Mike document management.
- * R2 is S3-compatible — uses @aws-sdk/client-s3.
+ * Storage abstraction for Mike document management.
+ * Supports both:
+ *   - Cloudflare R2 (cloud mode) using @aws-sdk/client-s3
+ *   - Local filesystem (local mode) using fs/promises
  *
- * Required env vars:
+ * Cloud mode env vars:
  *   R2_ENDPOINT_URL     — https://<account-id>.r2.cloudflarestorage.com
  *   R2_ACCESS_KEY_ID    — R2 API token (Access Key ID)
  *   R2_SECRET_ACCESS_KEY — R2 API token (Secret Access Key)
  *   R2_BUCKET_NAME      — bucket name (default: "mike")
+ *
+ * Local mode env vars:
+ *   LOCAL_STORAGE_PATH  — directory for local storage (default: "./storage")
  */
 
 import {
@@ -16,6 +21,9 @@ import {
   DeleteObjectCommand,
 } from "@aws-sdk/client-s3";
 import { getSignedUrl as awsGetSignedUrl } from "@aws-sdk/s3-request-presigner";
+import fs from "fs/promises";
+import path from "path";
+import { config } from "../config/env";
 
 function getClient(): S3Client {
   return new S3Client({
@@ -29,6 +37,9 @@ function getClient(): S3Client {
 }
 
 const BUCKET = process.env.R2_BUCKET_NAME ?? "mike";
+
+// Local storage directory (used in local mode)
+const STORAGE_DIR = config.localStoragePath || "./storage";
 
 export const storageEnabled = Boolean(
   process.env.R2_ENDPOINT_URL &&
@@ -45,6 +56,16 @@ export async function uploadFile(
   content: ArrayBuffer,
   contentType: string,
 ): Promise<void> {
+  if (config.mode === "local") {
+    // Save to local filesystem
+    const filePath = path.join(STORAGE_DIR, key);
+    const dir = path.dirname(filePath);
+    await fs.mkdir(dir, { recursive: true });
+    await fs.writeFile(filePath, Buffer.from(content));
+    return;
+  }
+
+  // Cloud mode: upload to R2
   const client = getClient();
   await client.send(
     new PutObjectCommand({
@@ -61,6 +82,21 @@ export async function uploadFile(
 // ---------------------------------------------------------------------------
 
 export async function downloadFile(key: string): Promise<ArrayBuffer | null> {
+  if (config.mode === "local") {
+    // Read from local filesystem
+    try {
+      const filePath = path.join(STORAGE_DIR, key);
+      const buffer = await fs.readFile(filePath);
+      return buffer.buffer.slice(
+        buffer.byteOffset,
+        buffer.byteOffset + buffer.byteLength,
+      );
+    } catch {
+      return null;
+    }
+  }
+
+  // Cloud mode: download from R2
   if (!storageEnabled) return null;
   try {
     const client = getClient();
@@ -80,6 +116,18 @@ export async function downloadFile(key: string): Promise<ArrayBuffer | null> {
 // ---------------------------------------------------------------------------
 
 export async function deleteFile(key: string): Promise<void> {
+  if (config.mode === "local") {
+    // Delete from local filesystem
+    try {
+      const filePath = path.join(STORAGE_DIR, key);
+      await fs.unlink(filePath);
+    } catch {
+      // Ignore errors if file doesn't exist
+    }
+    return;
+  }
+
+  // Cloud mode: delete from R2
   if (!storageEnabled) return;
   const client = getClient();
   await client.send(new DeleteObjectCommand({ Bucket: BUCKET, Key: key }));
@@ -94,6 +142,12 @@ export async function getSignedUrl(
   expiresIn = 3600,
   downloadFilename?: string,
 ): Promise<string | null> {
+  if (config.mode === "local") {
+    // In local mode, return null. Frontend will use direct download endpoint instead.
+    return null;
+  }
+
+  // Cloud mode: generate signed URL for R2
   if (!storageEnabled) return null;
   try {
     const client = getClient();

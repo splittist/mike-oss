@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { requireAuth } from "../middleware/auth";
 import { createServerSupabase } from "../lib/supabase";
+import { config } from "../config/env";
 import { downloadFile } from "../lib/storage";
 import { loadActiveVersion } from "../lib/documentVersions";
 import { normalizeDocxZipPaths } from "../lib/convert";
@@ -63,14 +64,29 @@ tabularRouter.get("/", requireAuth, async (req, res) => {
     const userEmail = res.locals.userEmail as string | undefined;
     const db = createServerSupabase();
 
-    // Optional ?project_id= scopes results to a single project. Project-page
-    // callers pass it; the global tabular-reviews page omits it. We still
-    // enforce access via listAccessibleProjectIds so a stranger can't request
-    // an arbitrary project_id.
+    // Optional ?project_id= scopes results to a single project.
     const projectIdFilter =
         typeof req.query.project_id === "string" && req.query.project_id
             ? (req.query.project_id as string)
             : null;
+
+    // Local mode: use SQLite abstraction (single user, no sharing)
+    if (config.mode === "local") {
+        const reviews = await listTabularReviewsByUser(userId, db);
+        const filtered = projectIdFilter
+            ? reviews.filter((r) => (r as any).project_id === projectIdFilter)
+            : reviews;
+        const reviewIds = filtered.map((r) => (r as { id: string }).id);
+        const docCounts = reviewIds.length > 0
+            ? await countDocumentsByReviewIds(reviewIds, db)
+            : {};
+        return void res.json(
+            filtered.map((r) => {
+                const id = (r as { id: string }).id;
+                return { ...r, document_count: (docCounts as Record<string, number>)[id] ?? 0 };
+            }),
+        );
+    }
 
     // Visible reviews = user's own + reviews in any accessible project.
     const projectIds = await listAccessibleProjectIds(userId, userEmail, db);

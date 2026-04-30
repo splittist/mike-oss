@@ -9,9 +9,12 @@ import { tabularRouter } from "./routes/tabular";
 import { workflowsRouter } from "./routes/workflows";
 import { userRouter } from "./routes/user";
 import { downloadsRouter } from "./routes/downloads";
+import { config } from "./config/env";
+import { initializeDatabase, db as sqliteDb } from "./db/sqlite";
+import * as dbRepo from "./lib/db-abstraction";
+import { createServerSupabase } from "./lib/supabase";
 
 const app = express();
-const PORT = process.env.PORT ?? 3001;
 
 app.use(
   cors({
@@ -34,6 +37,33 @@ app.use("/download", downloadsRouter);
 
 app.get("/health", (_req, res) => res.json({ ok: true }));
 
+// Initialize database if in local mode
+if (config.mode === "local") {
+  console.log("🔧 Initializing local SQLite database...");
+  try {
+    initializeDatabase();
+    console.log("✅ Database initialized successfully");
+
+    // Initialize default user profile for local development
+    (async () => {
+      const userId = "local@localhost";
+      const existingProfile = await dbRepo.getUserProfile(userId, sqliteDb as any);
+      if (!existingProfile) {
+        console.log("👤 Creating default local user profile...");
+        await dbRepo.upsertUserProfile(userId, sqliteDb as any);
+        console.log(`✅ User profile created for ${userId}`);
+      }
+    })().catch((err) => {
+      console.error("❌ Failed to initialize user profile:", err);
+    });
+  } catch (err) {
+    console.error("❌ Database initialization failed:", err);
+    process.exit(1);
+  }
+}
+
+const PORT = process.env.PORT ?? 3001;
+
 app.listen(PORT, () => {
-  console.log(`Mike backend running on port ${PORT}`);
+  console.log(`Mike backend running on port ${PORT} (mode: ${config.mode})`);
 });

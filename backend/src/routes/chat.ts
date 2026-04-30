@@ -333,6 +333,10 @@ chatRouter.post("/", requireAuth, async (req, res) => {
 
     console.log("[chat/stream] resolved chatId", chatId);
 
+    if (!Array.isArray(messages) || messages.length === 0) {
+        return void res.status(400).json({ detail: "messages array is required" });
+    }
+
     const lastUser = [...messages].reverse().find((m) => m.role === "user");
     if (lastUser) {
         await insertChatMessage({

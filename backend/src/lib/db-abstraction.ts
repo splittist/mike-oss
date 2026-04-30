@@ -5,6 +5,8 @@
  */
 
 import { createServerSupabase } from "./supabase";
+import { config } from "../config/env";
+import * as sqlite from "../db/sqlite";
 
 export type Db = ReturnType<typeof createServerSupabase>;
 
@@ -30,6 +32,10 @@ export async function getUserProfile(
   userId: string,
   db: Db
 ): Promise<UserProfile | null> {
+  if (config.mode === "local") {
+    return sqlite.getUserProfile(userId);
+  }
+  
   const { data, error } = await db
     .from("user_profiles")
     .select("*")
@@ -43,6 +49,10 @@ export async function upsertUserProfile(
   userId: string,
   db: Db
 ): Promise<UserProfile | null> {
+  if (config.mode === "local") {
+    return sqlite.upsertUserProfile(userId);
+  }
+  
   const { data, error } = await db
     .from("user_profiles")
     .upsert({ user_id: userId }, { onConflict: "user_id", ignoreDuplicates: true })
@@ -57,6 +67,10 @@ export async function updateUserProfile(
   updates: Partial<UserProfile>,
   db: Db
 ): Promise<UserProfile | null> {
+  if (config.mode === "local") {
+    return sqlite.updateUserProfile(userId, updates);
+  }
+  
   const { data, error } = await db
     .from("user_profiles")
     .update({ ...updates, updated_at: new Date().toISOString() })
@@ -86,6 +100,10 @@ export async function listProjectsByUser(
   userId: string,
   db: Db
 ): Promise<Project[]> {
+  if (config.mode === "local") {
+    return sqlite.listProjectsByUser(userId);
+  }
+  
   const { data } = await db
     .from("projects")
     .select("*")
@@ -95,6 +113,10 @@ export async function listProjectsByUser(
 }
 
 export async function getProject(projectId: string, db: Db): Promise<Project | null> {
+  if (config.mode === "local") {
+    return sqlite.getProject(projectId);
+  }
+  
   const { data } = await db
     .from("projects")
     .select("*")
@@ -110,6 +132,10 @@ export async function createProject(
   shared_with?: string[] | null,
   db?: Db
 ): Promise<Project | null> {
+  if (config.mode === "local") {
+    return sqlite.createProject(userId, name, cm_number, shared_with);
+  }
+  
   const client = db ?? createServerSupabase();
   const { data, error } = await client
     .from("projects")
@@ -131,6 +157,10 @@ export async function updateProject(
   updates: Partial<Project>,
   db: Db
 ): Promise<Project | null> {
+  if (config.mode === "local") {
+    return sqlite.updateProject(projectId, userId, updates);
+  }
+  
   const { data, error } = await db
     .from("projects")
     .update({ ...updates, updated_at: new Date().toISOString() })
@@ -147,6 +177,10 @@ export async function deleteProject(
   userId: string,
   db: Db
 ): Promise<boolean> {
+  if (config.mode === "local") {
+    return sqlite.deleteProject(projectId, userId);
+  }
+  
   const { error } = await db
     .from("projects")
     .delete()
@@ -169,6 +203,10 @@ export interface Chat {
 }
 
 export async function listChatsByUser(userId: string, db: Db): Promise<Chat[]> {
+  if (config.mode === "local") {
+    return sqlite.listChatsByUser(userId);
+  }
+  
   const { data } = await db
     .from("chats")
     .select("*")
@@ -178,6 +216,10 @@ export async function listChatsByUser(userId: string, db: Db): Promise<Chat[]> {
 }
 
 export async function getChat(chatId: string, db: Db): Promise<Chat | null> {
+  if (config.mode === "local") {
+    return sqlite.getChat(chatId);
+  }
+  
   const { data } = await db.from("chats").select("*").eq("id", chatId).single();
   return (data as Chat | null) ?? null;
 }
@@ -187,6 +229,10 @@ export async function createChat(
   projectId?: string | null,
   db?: Db
 ): Promise<Chat | null> {
+  if (config.mode === "local") {
+    return sqlite.createChat(userId, projectId);
+  }
+  
   const client = db ?? createServerSupabase();
   const { data, error } = await client
     .from("chats")
@@ -203,6 +249,10 @@ export async function updateChat(
   updates: Partial<Chat>,
   db: Db
 ): Promise<Chat | null> {
+  if (config.mode === "local") {
+    return sqlite.updateChat(chatId, userId, updates);
+  }
+  
   const { data, error } = await db
     .from("chats")
     .update({ ...updates, updated_at: new Date().toISOString() })
@@ -215,6 +265,10 @@ export async function updateChat(
 }
 
 export async function deleteChat(chatId: string, userId: string, db: Db): Promise<boolean> {
+  if (config.mode === "local") {
+    return sqlite.deleteChat(chatId, userId);
+  }
+  
   const { error } = await db.from("chats").delete().eq("id", chatId).eq("user_id", userId);
   return !error;
 }
@@ -240,6 +294,10 @@ export interface Document {
 }
 
 export async function listDocumentsByUser(userId: string, db: Db): Promise<Document[]> {
+  if (config.mode === "local") {
+    return sqlite.listDocumentsByUser(userId);
+  }
+  
   const { data } = await db
     .from("documents")
     .select("*")
@@ -252,6 +310,10 @@ export async function listDocumentsByProject(
   projectId: string,
   db: Db
 ): Promise<Document[]> {
+  if (config.mode === "local") {
+    return sqlite.listDocumentsByProject(projectId);
+  }
+  
   const { data } = await db
     .from("documents")
     .select("*")
@@ -261,6 +323,10 @@ export async function listDocumentsByProject(
 }
 
 export async function getDocument(documentId: string, db: Db): Promise<Document | null> {
+  if (config.mode === "local") {
+    return sqlite.getDocument(documentId);
+  }
+  
   const { data } = await db
     .from("documents")
     .select("*")
@@ -274,6 +340,10 @@ export async function deleteDocument(
   userId: string,
   db: Db
 ): Promise<boolean> {
+  if (config.mode === "local") {
+    return sqlite.deleteDocument(documentId, userId);
+  }
+  
   const { error } = await db
     .from("documents")
     .delete()
@@ -299,6 +369,10 @@ export interface Workflow {
 }
 
 export async function listWorkflowsByUser(userId: string, db: Db): Promise<Workflow[]> {
+  if (config.mode === "local") {
+    return sqlite.listWorkflowsByUser(userId);
+  }
+  
   const { data } = await db
     .from("workflows")
     .select("*")
@@ -308,6 +382,10 @@ export async function listWorkflowsByUser(userId: string, db: Db): Promise<Workf
 }
 
 export async function getWorkflow(workflowId: string, db: Db): Promise<Workflow | null> {
+  if (config.mode === "local") {
+    return sqlite.getWorkflow(workflowId);
+  }
+  
   const { data } = await db
     .from("workflows")
     .select("*")
@@ -331,6 +409,10 @@ export interface TabularReview {
 }
 
 export async function listTabularReviewsByUser(userId: string, db: Db): Promise<TabularReview[]> {
+  if (config.mode === "local") {
+    return sqlite.listTabularReviewsByUser(userId);
+  }
+  
   const { data } = await db
     .from("tabular_reviews")
     .select("*")
@@ -343,6 +425,10 @@ export async function getTabularReview(
   reviewId: string,
   db: Db
 ): Promise<TabularReview | null> {
+  if (config.mode === "local") {
+    return sqlite.getTabularReview(reviewId);
+  }
+  
   const { data } = await db
     .from("tabular_reviews")
     .select("*")
@@ -360,6 +446,10 @@ export async function listSharedProjects(
   userId: string,
   db: Db
 ): Promise<Project[]> {
+  if (config.mode === "local") {
+    return sqlite.listSharedProjects(userEmail, userId);
+  }
+  
   const { data } = await db
     .from("projects")
     .select("*")
@@ -373,6 +463,10 @@ export async function countDocumentsInProject(
   projectId: string,
   db: Db
 ): Promise<number> {
+  if (config.mode === "local") {
+    return sqlite.countDocumentsInProject(projectId);
+  }
+  
   const { count } = await db
     .from("documents")
     .select("id", { count: "exact", head: true })
@@ -384,6 +478,10 @@ export async function countChatsInProject(
   projectId: string,
   db: Db
 ): Promise<number> {
+  if (config.mode === "local") {
+    return sqlite.countChatsInProject(projectId);
+  }
+  
   const { count } = await db
     .from("chats")
     .select("id", { count: "exact", head: true })
@@ -395,6 +493,10 @@ export async function countReviewsInProject(
   projectId: string,
   db: Db
 ): Promise<number> {
+  if (config.mode === "local") {
+    return sqlite.countReviewsInProject(projectId);
+  }
+  
   const { count } = await db
     .from("tabular_reviews")
     .select("id", { count: "exact", head: true })
@@ -406,6 +508,10 @@ export async function listDocumentsByProjectAsc(
   projectId: string,
   db: Db
 ): Promise<Document[]> {
+  if (config.mode === "local") {
+    return sqlite.listDocumentsByProjectAsc(projectId);
+  }
+  
   const { data } = await db
     .from("documents")
     .select("*")
@@ -418,6 +524,10 @@ export async function listProjectSubfolders(
   projectId: string,
   db: Db
 ): Promise<Record<string, unknown>[]> {
+  if (config.mode === "local") {
+    return sqlite.listProjectSubfolders(projectId);
+  }
+  
   const { data } = await db
     .from("project_subfolders")
     .select("*")
@@ -430,6 +540,10 @@ export async function getUserProfilesByIds(
   userIds: string[],
   db: Db
 ): Promise<Pick<UserProfile, "user_id" | "display_name" | "organisation">[]> {
+  if (config.mode === "local") {
+    return sqlite.getUserProfilesByIds(userIds);
+  }
+  
   if (userIds.length === 0) return [];
   const { data } = await db
     .from("user_profiles")
@@ -446,6 +560,10 @@ export async function listChatsByProject(
   projectId: string,
   db: Db
 ): Promise<Chat[]> {
+  if (config.mode === "local") {
+    return sqlite.listChatsByProject(projectId);
+  }
+  
   const { data } = await db
     .from("chats")
     .select("*")
@@ -459,6 +577,10 @@ export async function listChatsForUserAndProjects(
   projectIds: string[],
   db: Db
 ): Promise<Chat[]> {
+  if (config.mode === "local") {
+    return sqlite.listChatsForUserAndProjects(userId, projectIds);
+  }
+  
   const filter =
     projectIds.length > 0
       ? `user_id.eq.${userId},project_id.in.(${projectIds.join(",")})`
@@ -476,6 +598,10 @@ export async function updateChatTitle(
   title: string,
   db: Db
 ): Promise<void> {
+  if (config.mode === "local") {
+    return sqlite.updateChatTitle(chatId, title);
+  }
+  
   await db.from("chats").update({ title }).eq("id", chatId);
 }
 
@@ -487,6 +613,10 @@ export async function listChatMessages(
   chatId: string,
   db: Db
 ): Promise<Record<string, unknown>[]> {
+  if (config.mode === "local") {
+    return sqlite.listChatMessages(chatId);
+  }
+  
   const { data } = await db
     .from("chat_messages")
     .select("*")
@@ -506,6 +636,10 @@ export async function insertChatMessage(
   },
   db: Db
 ): Promise<void> {
+  if (config.mode === "local") {
+    return sqlite.insertChatMessage(payload);
+  }
+  
   await db.from("chat_messages").insert({
     chat_id: payload.chat_id,
     role: payload.role,
@@ -520,6 +654,10 @@ export async function getEditStatuses(
   editIds: string[],
   db: Db
 ): Promise<{ id: string; status: "pending" | "accepted" | "rejected" }[]> {
+  if (config.mode === "local") {
+    return sqlite.getEditStatuses(editIds);
+  }
+  
   if (editIds.length === 0) return [];
   const { data } = await db
     .from("document_edits")
@@ -532,6 +670,10 @@ export async function getVersionNumbers(
   versionIds: string[],
   db: Db
 ): Promise<{ id: string; version_number: number | null }[]> {
+  if (config.mode === "local") {
+    return sqlite.getVersionNumbers(versionIds);
+  }
+  
   if (versionIds.length === 0) return [];
   const { data } = await db
     .from("document_versions")
@@ -548,6 +690,10 @@ export async function listDocumentsByUserNoProject(
   userId: string,
   db: Db
 ): Promise<Document[]> {
+  if (config.mode === "local") {
+    return sqlite.listDocumentsByUserNoProject(userId);
+  }
+  
   const { data } = await db
     .from("documents")
     .select("*")
@@ -562,6 +708,10 @@ export async function getDocumentByOwner(
   userId: string,
   db: Db
 ): Promise<Document | null> {
+  if (config.mode === "local") {
+    return sqlite.getDocumentByOwner(documentId, userId);
+  }
+  
   const { data } = await db
     .from("documents")
     .select("*")
@@ -575,6 +725,10 @@ export async function getDocumentVersionsByDocumentId(
   documentId: string,
   db: Db
 ): Promise<{ storage_path: string; pdf_storage_path: string | null }[]> {
+  if (config.mode === "local") {
+    return sqlite.getDocumentVersionsByDocumentId(documentId);
+  }
+  
   const { data } = await db
     .from("document_versions")
     .select("storage_path, pdf_storage_path")
@@ -586,6 +740,10 @@ export async function getDocumentVersionByStoragePath(
   storagePath: string,
   db: Db
 ): Promise<{ id: string; document_id: string } | null> {
+  if (config.mode === "local") {
+    return sqlite.getDocumentVersionByStoragePath(storagePath);
+  }
+  
   const { data } = await db
     .from("document_versions")
     .select("id, document_id")
@@ -609,6 +767,10 @@ export async function createWorkflow(
   },
   db: Db
 ): Promise<Workflow | null> {
+  if (config.mode === "local") {
+    return sqlite.createWorkflow(data);
+  }
+  
   const { data: row, error } = await db
     .from("workflows")
     .insert({
@@ -631,6 +793,10 @@ export async function updateWorkflowById(
   updates: Record<string, unknown>,
   db: Db
 ): Promise<Workflow | null> {
+  if (config.mode === "local") {
+    return sqlite.updateWorkflowById(workflowId, updates);
+  }
+  
   const { data, error } = await db
     .from("workflows")
     .update(updates)
@@ -647,6 +813,10 @@ export async function deleteWorkflowById(
   userId: string,
   db: Db
 ): Promise<boolean> {
+  if (config.mode === "local") {
+    return sqlite.deleteWorkflowById(workflowId, userId);
+  }
+  
   const { error } = await db
     .from("workflows")
     .delete()
@@ -669,6 +839,10 @@ export async function listWorkflowSharesByEmail(
   email: string,
   db: Db
 ): Promise<WorkflowShare[]> {
+  if (config.mode === "local") {
+    return sqlite.listWorkflowSharesByEmail(email);
+  }
+  
   const { data } = await db
     .from("workflow_shares")
     .select("workflow_id, shared_by_user_id, allow_edit")
@@ -681,6 +855,10 @@ export async function getWorkflowShareByEmail(
   email: string,
   db: Db
 ): Promise<WorkflowShare | null> {
+  if (config.mode === "local") {
+    return sqlite.getWorkflowShareByEmail(workflowId, email);
+  }
+  
   const { data } = await db
     .from("workflow_shares")
     .select("allow_edit")
@@ -694,6 +872,10 @@ export async function getWorkflowsByIds(
   ids: string[],
   db: Db
 ): Promise<Workflow[]> {
+  if (config.mode === "local") {
+    return sqlite.getWorkflowsByIds(ids);
+  }
+  
   if (ids.length === 0) return [];
   const { data } = await db.from("workflows").select("*").in("id", ids);
   return (data ?? []) as Workflow[];
@@ -703,6 +885,10 @@ export async function listWorkflowSharesByWorkflow(
   workflowId: string,
   db: Db
 ): Promise<WorkflowShare[]> {
+  if (config.mode === "local") {
+    return sqlite.listWorkflowSharesByWorkflow(workflowId);
+  }
+  
   const { data } = await db
     .from("workflow_shares")
     .select("id, shared_with_email, allow_edit, created_at")
@@ -715,6 +901,10 @@ export async function upsertWorkflowShares(
   rows: Omit<WorkflowShare, "id" | "created_at">[],
   db: Db
 ): Promise<boolean> {
+  if (config.mode === "local") {
+    return sqlite.upsertWorkflowShares(rows);
+  }
+  
   const { error } = await db
     .from("workflow_shares")
     .upsert(rows, { onConflict: "workflow_id,shared_with_email" });
@@ -726,6 +916,10 @@ export async function deleteWorkflowShareById(
   workflowId: string,
   db: Db
 ): Promise<void> {
+  if (config.mode === "local") {
+    return sqlite.deleteWorkflowShareById(shareId, workflowId);
+  }
+  
   await db
     .from("workflow_shares")
     .delete()
@@ -737,6 +931,10 @@ export async function listHiddenWorkflowIds(
   userId: string,
   db: Db
 ): Promise<string[]> {
+  if (config.mode === "local") {
+    return sqlite.listHiddenWorkflowIds(userId);
+  }
+  
   const { data } = await db
     .from("hidden_workflows")
     .select("workflow_id")
@@ -749,6 +947,10 @@ export async function upsertHiddenWorkflow(
   workflowId: string,
   db: Db
 ): Promise<boolean> {
+  if (config.mode === "local") {
+    return sqlite.upsertHiddenWorkflow(userId, workflowId);
+  }
+  
   const { error } = await db
     .from("hidden_workflows")
     .upsert({ user_id: userId, workflow_id: workflowId }, { onConflict: "user_id,workflow_id" });
@@ -760,6 +962,10 @@ export async function deleteHiddenWorkflow(
   workflowId: string,
   db: Db
 ): Promise<boolean> {
+  if (config.mode === "local") {
+    return sqlite.deleteHiddenWorkflow(userId, workflowId);
+  }
+  
   const { error } = await db
     .from("hidden_workflows")
     .delete()
@@ -787,6 +993,10 @@ export async function listTabularCellsByReview(
   reviewId: string,
   db: Db
 ): Promise<TabularCell[]> {
+  if (config.mode === "local") {
+    return sqlite.listTabularCellsByReview(reviewId);
+  }
+  
   const { data } = await db
     .from("tabular_cells")
     .select("*")
@@ -804,6 +1014,10 @@ export async function insertTabularReview(
   },
   db: Db
 ): Promise<TabularReview | null> {
+  if (config.mode === "local") {
+    return sqlite.insertTabularReview(data);
+  }
+  
   const { data: row, error } = await db
     .from("tabular_reviews")
     .insert({
@@ -823,6 +1037,10 @@ export async function insertTabularCells(
   cells: { review_id: string; document_id: string; column_index: number; status: string }[],
   db: Db
 ): Promise<void> {
+  if (config.mode === "local") {
+    return sqlite.insertTabularCells(cells);
+  }
+  
   if (cells.length === 0) return;
   await db.from("tabular_cells").insert(cells);
 }
@@ -832,6 +1050,10 @@ export async function updateTabularReview(
   updates: Record<string, unknown>,
   db: Db
 ): Promise<TabularReview | null> {
+  if (config.mode === "local") {
+    return sqlite.updateTabularReview(reviewId, updates);
+  }
+  
   const { data, error } = await db
     .from("tabular_reviews")
     .update(updates)
@@ -846,6 +1068,10 @@ export async function deleteTabularReview(
   reviewId: string,
   db: Db
 ): Promise<boolean> {
+  if (config.mode === "local") {
+    return sqlite.deleteTabularReview(reviewId);
+  }
+  
   const { error } = await db
     .from("tabular_reviews")
     .delete()
@@ -857,6 +1083,10 @@ export async function listTabularCellKeysForReview(
   reviewId: string,
   db: Db
 ): Promise<{ document_id: string; column_index: number }[]> {
+  if (config.mode === "local") {
+    return sqlite.listTabularCellKeysForReview(reviewId);
+  }
+  
   const { data } = await db
     .from("tabular_cells")
     .select("document_id, column_index")
@@ -869,6 +1099,10 @@ export async function deleteTabularCellsForDocs(
   documentIds: string[],
   db: Db
 ): Promise<void> {
+  if (config.mode === "local") {
+    return sqlite.deleteTabularCellsForDocs(reviewId, documentIds);
+  }
+  
   if (documentIds.length === 0) return;
   await db
     .from("tabular_cells")
@@ -881,6 +1115,10 @@ export async function countDocumentsByReviewIds(
   reviewIds: string[],
   db: Db
 ): Promise<Record<string, number>> {
+  if (config.mode === "local") {
+    return sqlite.countDocumentsByReviewIds(reviewIds);
+  }
+  
   if (reviewIds.length === 0) return {};
   const { data } = await db
     .from("tabular_cells")

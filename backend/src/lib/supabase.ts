@@ -8,10 +8,11 @@ import { loadConfig } from "../config/env";
  */
 export function createServerSupabase() {
   const config = loadConfig();
-  if (config.mode === "local" && (!process.env.SUPABASE_URL || !process.env.SUPABASE_SECRET_KEY)) {
-    throw new Error(
-      "Local mode requires Supabase credentials for backward compatibility during migration, or SQLite adapter not yet implemented"
-    );
+  if (config.mode === "local") {
+    // In local mode, return a stub — db-abstraction.ts routes all calls to SQLite
+    return createClient("http://localhost:54321", "local-stub-key", {
+      auth: { persistSession: false },
+    });
   }
   const url = process.env.SUPABASE_URL || "";
   const key = process.env.SUPABASE_SECRET_KEY || "";

@@ -10,7 +10,7 @@ export async function requireAuth(
 
   if (config.mode === "local") {
     // Local mode: always authenticate as local user
-    res.locals.userId = "local";
+    res.locals.userId = "local@localhost";
     res.locals.userEmail = "local@localhost";
     res.locals.token = "local-token";
     next();

@@ -38,3 +38,6 @@ export function loadConfig(): AppConfig {
     localStoragePath: process.env.LOCAL_STORAGE_PATH || "./data/storage",
   };
 }
+
+// Default instance
+export const config = loadConfig();
