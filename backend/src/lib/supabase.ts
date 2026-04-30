@@ -1,10 +1,18 @@
 import { createClient } from "@supabase/supabase-js";
+import { loadConfig } from "../config/env";
 
 /**
  * Server-side Supabase client using the service role key.
  * Bypasses RLS — only use in API routes after verifying the user.
+ * In local mode, this will be replaced by SQLite adapter in future phases.
  */
 export function createServerSupabase() {
+  const config = loadConfig();
+  if (config.mode === "local" && (!process.env.SUPABASE_URL || !process.env.SUPABASE_SECRET_KEY)) {
+    throw new Error(
+      "Local mode requires Supabase credentials for backward compatibility during migration, or SQLite adapter not yet implemented"
+    );
+  }
   const url = process.env.SUPABASE_URL || "";
   const key = process.env.SUPABASE_SECRET_KEY || "";
   return createClient(url, key, { auth: { persistSession: false } });
@@ -13,8 +21,15 @@ export function createServerSupabase() {
 /**
  * Extract and verify the Supabase JWT from the Authorization header.
  * Returns the user's UUID string, or throws a Response with 401.
+ * In local mode, returns hardcoded local user.
  */
 export async function getUserIdFromRequest(req: Request): Promise<string> {
+  const config = loadConfig();
+  if (config.mode === "local") {
+    // Local mode: accept no token, return hardcoded local user
+    return "local";
+  }
+
   const auth = req.headers.get("authorization") ?? "";
   if (!auth.startsWith("Bearer ")) {
     throw new Response("Missing or invalid Authorization header", {

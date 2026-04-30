@@ -1,11 +1,23 @@
 import { Request, Response, NextFunction } from "express";
-import { createClient } from "@supabase/supabase-js";
+import { loadConfig } from "../config/env";
 
 export async function requireAuth(
   req: Request,
   res: Response,
   next: NextFunction,
 ): Promise<void> {
+  const config = loadConfig();
+
+  if (config.mode === "local") {
+    // Local mode: always authenticate as local user
+    res.locals.userId = "local";
+    res.locals.userEmail = "local@localhost";
+    res.locals.token = "local-token";
+    next();
+    return;
+  }
+
+  // Cloud mode: verify Supabase token
   const auth = req.headers.authorization ?? "";
   if (!auth.startsWith("Bearer ")) {
     res.status(401).json({ detail: "Missing or invalid Authorization header" });
@@ -21,6 +33,7 @@ export async function requireAuth(
     return;
   }
 
+  const { createClient } = await import("@supabase/supabase-js");
   const admin = createClient(supabaseUrl, serviceKey, {
     auth: { persistSession: false },
   });
