@@ -7,7 +7,7 @@ This document outlines the complete path from multi-user cloud (Supabase + R2 + 
 **Total Effort:** 40-60 engineer-hours  
 **Risk Level:** Low (each phase can be reverted independently)  
 **Can be parallelized?** Yes, phases 1-2 and 3 can overlap  
-**Minimum viable product:** After Phase 3 (runs locally, no cloud dependency)  
+**Minimum viable product:** After Phase 4 (runs locally, no cloud dependency)  
 
 ---
 
@@ -35,18 +35,18 @@ Phase 3: Route Migration to Repository Layer (SECOND PR)
          └─ Backend compiles without errors ✅ DONE
          ~6-8 hours ✅ COMPLETE (Commit: f0ccb30)
 
-         ↓ (Second PR merged - NOW HERE)
+         ↓ (Second PR merged)
 
-Phase 4: SQLite Adapter & Local Storage (THIRD PR - NEXT)
-         ├─ Implement SQLite adapter with identical repository API
-         ├─ Create SQLite schema mirroring Supabase tables
-         ├─ Implement local filesystem storage (replace R2)
-         ├─ Implement migration runner
-         ├─ Toggle APP_MODE=local to use SQLite
-         └─ Test end-to-end with local DB + storage
-         ~14-18 hours (RECOMMENDED NEXT STEP)
+Phase 4: SQLite Adapter & Local Storage (THIRD PR)
+         ├─ Implement SQLite adapter with identical repository API ✅ DONE
+         ├─ Create SQLite schema mirroring Supabase tables ✅ DONE
+         ├─ Implement local filesystem storage (replace R2) ✅ DONE
+         ├─ Implement migration runner ✅ DONE
+         ├─ Toggle APP_MODE=local to use SQLite ✅ DONE
+         └─ Smoke test end-to-end with local DB + storage ✅ DONE
+         ~14-18 hours ✅ COMPLETE
 
-         ↓ (Third PR shipped, fully local)
+         ↓ (Third PR shipped, fully local - CURRENT STATE)
 
 Phase 5: Schema Simplification for Single-User (OPTIONAL)
          ├─ Remove sharing/ownership complexity
@@ -77,7 +77,7 @@ Phase 7: Electron/Tauri Shell (OPTIONAL, future enhancement)
 
 ## Recommended Stopping Points
 
-### MVP After Phase 3 (12-16 hours total) ← CURRENTLY HERE
+### MVP After Phase 3 (12-16 hours total)
 - ✅ All routes abstracted to repository layer
 - ✅ Single-user, local API
 - ✅ No Supabase Auth
@@ -90,7 +90,7 @@ Phase 7: Electron/Tauri Shell (OPTIONAL, future enhancement)
 
 ---
 
-### Fully Local After Phase 4 (26-34 hours total) ← RECOMMENDED NEXT
+### Fully Local After Phase 4 (26-34 hours total) ← CURRENTLY HERE
 - ✅ Everything from Phase 3
 - ✅ SQLite database (no Supabase)
 - ✅ Local filesystem storage (no R2)
@@ -149,42 +149,33 @@ Phase 7: Electron/Tauri Shell (OPTIONAL, future enhancement)
 ### Phase 3: Route Migration (SECOND PR - ✅ COMPLETE)
 **What it does:**
 - Moves all database queries behind repository layer
-- Ensures all routes use db-abstraction functions, not direct db.from() calls
-- Prepares backend for database swap (Phase 4)
+- Ensures frontend accesses user profile via API, not Supabase
+- Leaves database unchanged (still Supabase)
 
-**Implementation completed:**
-- ✅ Extended db-abstraction.ts with ~350 new repository functions
-- ✅ Migrated projects.ts - core CRUD + document listing
-- ✅ Migrated chat.ts - all CRUD + LLM streaming
-- ✅ Migrated workflows.ts - CRUD + workflow shares + hidden workflows
-- ✅ Migrated documents.ts - CRUD + version management + tracked changes
-- ✅ Migrated tabular.ts - core CRUD endpoints with cell management
-- ✅ Migrated projectChat.ts - streaming chat + message insertion
-- ✅ Migrated downloads.ts - token verification + file retrieval
-- ✅ Migrated user.ts - added GET /profile + POST/DELETE
-- ✅ All routes now use repository layer exclusively
-- ✅ Backend compiles without errors (commit f0ccb30)
+**Implementation:**
+- Migrate 7 backend routes (projects, chat, documents, workflows, tabular, projectChat, downloads)
+- Add GET /user/profile endpoint
+- Refactor UserProfileContext to use API
+- See SECOND_PR_SCOPE.md for detailed changes per file
 
-**Files changed:** 11  
-**Commit:** f0ccb30  
-**Status:** Ready for Phase 4 (SQLite implementation)
+**Files changed:** 9  
+**Estimated edits:** 35-52 replacements (can be done incrementally)  
+**Tests needed:** All routes return data, no regressions  
 
-**Key Achievement:** No database implementation details in any route file. You can now replace Supabase with SQLite by only modifying `db-abstraction.ts` and `supabase.ts`.
+**Decision Point:** After this phase, you have a working local app that depends only on Supabase backend. You can stop here or continue to full local.
 
 ---
 
-### Phase 4: SQLite Adapter (THIRD PR - RECOMMENDED NEXT)
+### Phase 4: SQLite Adapter (THIRD PR - ✅ COMPLETE)
 **What it does:**
 - Implements SQLite backend matching repository interface
-- Adds local filesystem storage
+- Adds schema migration runner
 - Swaps database backend via APP_MODE=local
-- Achieves fully local, offline-capable operation
 
-**Files to create/modify:**
+**Files to create:**
 - `backend/src/db/sqlite.ts` - SQLite adapter with repository interface
 - `backend/src/db/migrations.ts` - Schema creation and migrations
-- `backend/src/lib/storage.ts` - Local filesystem adapter
-- `backend/src/index.ts` - Initialize SQLite on startup
+- `backend/src/db/init.ts` - Startup initialization
 
 **Implementation outline:**
 ```typescript
@@ -196,7 +187,7 @@ export class SQLiteAdapter {
 }
 ```
 
-**When to do this:** After Phase 3 is merged and routes are using repositories.
+**Status:** Implemented and smoke tested in local mode.
 
 ---
 
@@ -262,8 +253,8 @@ export async function uploadFile(key: string, content: ArrayBuffer): Promise<voi
 
 ### For Quick Local App (12-20 hours)
 1. Phase 1-2 (First PR) ✅ DONE
-2. Phase 3 (Second PR) - Do next
-3. Phase 4 (Third PR) - SQLite swap
+2. Phase 3 (Second PR) ✅ DONE
+3. Phase 4 (Third PR) ✅ DONE
 
 **Stop here.** You have a fully functional local single-user app.
 
@@ -271,10 +262,10 @@ export async function uploadFile(key: string, content: ArrayBuffer): Promise<voi
 
 ### For Production-Ready (40-50 hours)
 1. Phase 1-2 ✅
-2. Phase 3
-3. Phase 4 (SQLite)
-4. Phase 5 (Local storage)
-5. Phase 6 (Schema simplification)
+2. Phase 3 ✅
+3. Phase 4 (SQLite) ✅
+4. Phase 5 (Schema simplification)
+5. Phase 6 (Next.js replacement)
 
 **Optionally add Phase 7 later** if you want to remove Next.js.
 
@@ -286,8 +277,8 @@ export async function uploadFile(key: string, content: ArrayBuffer): Promise<voi
 - **Phase 1-2:** No functionality lost (just auth removed), easy to revert
 - **Phase 3:** Ensure routes still return same data shapes
 - **Phase 4:** Test SQLite schema parity with Supabase
-- **Phase 5:** Ensure document versioning works locally
-- **Phase 6:** Remove features carefully (with feature flags if needed)
+- **Phase 5:** Remove sharing/ownership logic carefully with regression tests
+- **Phase 6:** Ensure routing, navigation, and build outputs match existing behavior
 - **Phase 7:** UI should work identically (React component-level)
 
 ### Rollback Plan
@@ -315,11 +306,10 @@ Each phase can be reverted independently:
 
 ## Next Steps
 
-1. **Review this PR:** Phase 1-2 is complete and ready for review
-2. **Merge Phase 1-2** (first PR)
-3. **Start Phase 3** using SECOND_PR_SCOPE.md as guide
-4. **Decide:** Stop at Phase 3 (quick local) or continue to Phase 5 (full local)?
-5. **Defer Phase 7** (Next.js replacement) until later if at all
+1. **Finalize docs and release notes** for Phase 4 completion
+2. **Default local development docs to `APP_MODE=local`**
+3. **Decide whether to start Phase 5** (schema simplification for single-user)
+4. **Keep Phase 6/7 deferred** unless there is a clear product need
 
 ---
 
@@ -328,10 +318,10 @@ Each phase can be reverted independently:
 | Goal | Stop After |
 |------|------------|
 | Remove Supabase Auth, keep current stack | Phase 2 ✅ |
-| Run fully local, no cloud | Phase 5 |
+| Run fully local, no cloud | Phase 4 ✅ |
 | Simplified codebase | Phase 6 |
 | No frameworks | Phase 7 |
 | Desktop app | Phase 8 |
 
-**Recommendation:** Stop after Phase 5 (fully local). Phase 6 & 7 are quality-of-life improvements, not essential.
+**Recommendation:** Stop after Phase 4 for a fully local app. Phase 5+ are optional quality-of-life improvements.
 

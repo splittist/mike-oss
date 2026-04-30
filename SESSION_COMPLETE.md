@@ -1,5 +1,8 @@
 # Session Complete: Phase 3 Finalized & Phase 4 Ready
 
+> Historical note (April 30, 2026): This document captured the handoff before Phase 4 was implemented.
+> Current source of truth: [CURRENT_STATUS.md](CURRENT_STATUS.md) and [COMPLETE_ROADMAP.md](COMPLETE_ROADMAP.md).
+
 **Session Date:** April 30, 2026  
 **Status:** ✅ ALL WORK COMPLETE  
 **Current Commit:** f0ccb30 (Phase 3 complete)  

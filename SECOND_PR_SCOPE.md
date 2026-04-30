@@ -1,5 +1,8 @@
 # Second PR Scope: Migrate Backend Routes to Repository Layer (Phase 3)
 
+> Historical note: This scope was for the Phase 3 implementation window and is now reference-only.
+> Current source of truth: [CURRENT_STATUS.md](CURRENT_STATUS.md) and [COMPLETE_ROADMAP.md](COMPLETE_ROADMAP.md).
+
 ## Status: ✅ COMPLETE
 
 **Commit:** f0ccb30  

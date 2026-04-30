@@ -1,5 +1,8 @@
 # Quick Start: Phase 4 Implementation
 
+> Historical note: Phase 4 is complete. Keep this guide as an implementation reference, not as the current task list.
+> For current status and next decisions, see [CURRENT_STATUS.md](CURRENT_STATUS.md) and [COMPLETE_ROADMAP.md](COMPLETE_ROADMAP.md).
+
 **Ready to go local? Start here.**
 
 ---

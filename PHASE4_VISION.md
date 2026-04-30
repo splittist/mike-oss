@@ -1,5 +1,8 @@
 # Phase 4 Vision: The End Result
 
+> Status note: The Phase 4 target state described here has now been implemented.
+> Use this document as a product vision reference; use [CURRENT_STATUS.md](CURRENT_STATUS.md) for operational status.
+
 **What you'll have after Phase 4 is complete:**
 
 ---

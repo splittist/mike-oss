@@ -1,5 +1,8 @@
 # First PR Implementation Summary
 
+> Historical note: This file describes the Phase 1-2 milestone only.
+> For current project state after local-mode completion, see [CURRENT_STATUS.md](CURRENT_STATUS.md) and [COMPLETE_ROADMAP.md](COMPLETE_ROADMAP.md).
+
 ## What's Been Done (Phase 1 & 2 Combined)
 
 ### New Files Created
