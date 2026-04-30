@@ -1,52 +1,68 @@
 # Second PR Scope: Migrate Backend Routes to Repository Layer (Phase 3)
 
-## Overview
-After the first PR is merged, the second PR migrates backend routes to use the new repository abstraction layer. This isolates database access, making it easy to swap Supabase for SQLite later.
+## Status: ✅ COMPLETE
 
-**Goal:** All routes call repository functions instead of direct `.from("table")` calls.  
-**Will compile and run?** Yes, against existing Supabase backend.  
-**Breaking changes?** None (API contracts unchanged).  
-**Estimated effort:** ~3 hours (one route at a time, can split across multiple commits).  
+**Commit:** f0ccb30  
+**Completed on:** April 30, 2026
+
+### What Was Done
+- ✅ Extended db-abstraction.ts with ~350 new repository functions
+- ✅ Migrated all 8 backend route files
+- ✅ Added GET /user/profile endpoint
+- ✅ Verified TypeScript compilation (0 errors)
+- ✅ All routes now use repository layer exclusively
+
+### Routes Migrated
+1. ✅ projects.ts - Projects CRUD + document listing
+2. ✅ chat.ts - Chat CRUD + LLM streaming endpoints
+3. ✅ workflows.ts - Workflows + sharing + hidden workflows  
+4. ✅ documents.ts - Document CRUD + versions + tracked changes
+5. ✅ tabular.ts - Tabular reviews CRUD + cell management
+6. ✅ projectChat.ts - Project streaming chat
+7. ✅ downloads.ts - File download with token verification
+8. ✅ user.ts - User profile endpoints
 
 ---
 
-## Files to Modify (By Priority)
+## Next Phase: SQLite Migration (Phase 4)
 
-### 1. backend/src/routes/projects.ts
-**Current pattern:**
-```typescript
-const { data: ownProjects, error: ownError } = await db
-  .from("projects")
-  .select("*")
-  .eq("user_id", userId);
-```
+Now that all routes use the repository layer, you can implement SQLite without changing ANY route code.
 
-**New pattern:**
-```typescript
-import * as projectRepo from "../lib/db-abstraction";
-const ownProjects = await projectRepo.listProjectsByUser(userId, db);
-```
+**See:** [SQLITE_MIGRATION_PATH.md](SQLITE_MIGRATION_PATH.md) for complete implementation guide.
 
-**Changes needed (example):**
-- Line ~10: Add import statement
-- Line ~21: Replace db query with `projectRepo.listProjectsByUser(...)`
-- Line ~46: Replace db.insert with `projectRepo.createProject(...)`
-- Line ~78: Replace db.single().select with `projectRepo.getProject(...)`
-- Line ~100: Replace db.update with `projectRepo.updateProject(...)`
-- Line ~145: Replace db.delete with `projectRepo.deleteProject(...)`
+**Estimated time:** 14-18 hours  
+**Difficulty:** Medium (lots of repetitive function implementations)
 
-**Total edits in this file:** ~6-8 replacements
+---
 
-### 2. backend/src/routes/chat.ts
-**Changes needed:**
-- Add `import * as chatRepo from "../lib/db-abstraction"`
-- Replace `db.from("chats").select()` with `chatRepo.listChatsByUser(...)`
-- Replace `db.from("chats").insert()` with `chatRepo.createChat(...)`
-- Replace `.single().select()` with `chatRepo.getChat(...)`
-- Replace `.update()` with `chatRepo.updateChat(...)`
-- Replace `.delete()` with `chatRepo.deleteChat(...)`
+## Overview (For Reference)
+After Phase 1-2 (Auth Removal), the second PR migrated backend routes to use the new repository abstraction layer. This isolates database access, making it easy to swap Supabase for SQLite later.
 
-**Total edits:** ~5-7 replacements
+**Goal:** All routes call repository functions instead of direct `.from("table")` calls.  
+**Result:** ✅ Achieved - All routes abstracted.  
+**Status:** Ready for Phase 4 (SQLite implementation).
+
+---
+
+## Files Modified (Completed)
+
+### 1. backend/src/routes/projects.ts ✅
+**Changes made:**
+- Added imports for repository functions
+- Replaced all `db.from("projects").select()` with `listProjectsByUser()`
+- Replaced `db.from("projects").insert()` with `createProject()`
+- Replaced direct queries with repository functions throughout
+
+**Total edits:** 7 replacements
+
+### 2. backend/src/routes/chat.ts ✅
+**Changes made:**
+- Added imports for repository functions
+- Replaced chat queries with `getChat()`, `createChat()`, `updateChat()`
+- Replaced message operations with repository functions
+- Updated title generation to use `updateChatTitle()`
+
+**Total edits:** 6 replacements
 
 ### 3. backend/src/routes/documents.ts
 **Changes needed:**

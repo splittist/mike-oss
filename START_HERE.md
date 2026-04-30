@@ -4,100 +4,93 @@
 
 I've created a complete, actionable migration from Supabase to SQLite + local mode. Here's what's been done:
 
-### ✅ First PR is COMPLETE and READY
-- **Location:** [FIRST_PR_SUMMARY.md](FIRST_PR_SUMMARY.md)
-- **Status:** All code written, compiles, no breaking changes
-- **What it does:** Removes Supabase Auth, adds local mode toggle
-- **Files changed:** 8 files modified, 2 new files created
-- **Setup time:** 5 minutes
-- **Test time:** 15 minutes
+### ✅ Phase 1-2: Auth Removal & Abstraction (FIRST PR - COMPLETE)
+- **Status:** Merged & working
+- **Files changed:** 8 modified, 2 created
+- **What it does:** Removes Supabase Auth, adds local mode, creates repository abstraction
+
+### ✅ Phase 3: Route Migration to Repository Layer (SECOND PR - COMPLETE)
+- **Status:** Just completed (commit f0ccb30)
+- **Files changed:** 11 modified
+- **What it does:** All backend routes now use repository layer instead of direct DB calls
+- **Key achievement:** Routes are now abstracted from database implementation
+- **Next step:** Backend is now ready for SQLite swap
 
 ### 📋 Detailed Documents Created
 
-1. **[FIRST_PR_SUMMARY.md](FIRST_PR_SUMMARY.md)** ← START HERE
-   - What's been done for the first PR
+1. **[FIRST_PR_SUMMARY.md](FIRST_PR_SUMMARY.md)** ← Phase 1-2 details
+   - What's been done for auth removal
    - Setup instructions for testing
    - Testing checklist
-   - Risk assessment
 
-2. **[MIGRATION_CHECKLIST.md](MIGRATION_CHECKLIST.md)** ← Full reference
-   - Complete file-by-file breakdown
-   - All 7 phases documented
-   - Exact code changes shown
-   - Purpose of each file
+2. **[SECOND_PR_SCOPE.md](SECOND_PR_SCOPE.md)** ← Phase 3 details  
+   - All routes migrated to repository layer
+   - Implementation patterns used
+   - Ready for Phase 4 (SQLite)
 
-3. **[SECOND_PR_SCOPE.md](SECOND_PR_SCOPE.md)** ← What's next
-   - Second PR: Migrate routes to repository layer
-   - File-by-file diff examples
-   - Implementation checklist
-   - Estimated hours per file
+3. **[SQLITE_MIGRATION_PATH.md](SQLITE_MIGRATION_PATH.md)** ← NEW: Clear path forward
+   - Exactly what to do to implement SQLite
+   - File-by-file changes needed
+   - Testing strategy
+   - Estimated 2-3 days work
 
 4. **[COMPLETE_ROADMAP.md](COMPLETE_ROADMAP.md)** ← Strategic view
    - All 8 phases at a glance
    - Effort estimates per phase
    - Decision points (where to stop)
-   - Risk mitigation strategy
 
 ---
 
-## Quick Decision: What to Do Right Now?
+## Where We Are
 
-### Option A: Fast Test (30 minutes)
-"I want to see if local mode works"
+**Current Status:** Phase 3 ✅ Complete
+- ✅ All routes abstracted to repository layer (`db-abstraction.ts`)
+- ✅ No direct `.from("table")` calls in any route
+- ✅ Backend compiles without errors
+- ✅ Ready to swap database implementation
 
-1. Check out the code (already implemented)
-2. Follow [FIRST_PR_SUMMARY.md](FIRST_PR_SUMMARY.md) setup steps
-3. Run backend with `APP_MODE=local npm run dev`
-4. Run frontend `npm run dev`
-5. Verify no auth needed, page loads
-
-**Result:** Proof that local mode works, no Supabase Auth needed.
-
----
-
-### Option B: Review & Merge First PR (1-2 hours)
-"I want to understand what's being changed and why"
-
-1. Read [FIRST_PR_SUMMARY.md](FIRST_PR_SUMMARY.md) (10 min)
-2. Review code changes:
-   - `backend/src/config/env.ts` (new)
-   - `backend/src/lib/db-abstraction.ts` (new)
-   - `backend/src/middleware/auth.ts` (modified)
-   - `frontend/src/contexts/AuthContext.tsx` (modified)
-3. Run test setup from FIRST_PR_SUMMARY.md
-4. Review console for errors
-5. Make PR ready
-
-**Result:** First PR reviewed, tested, ready to ship.
+**What This Means:**
+- You can now implement a different database without touching any route files
+- Just replace functions in `db-abstraction.ts` and `supabase.ts`
+- All route logic stays unchanged
 
 ---
 
-### Option C: Plan Full Migration (2-3 hours)
-"I want a timeline and to understand all phases"
+## Next Steps: Choose Your Path
 
-1. Read [COMPLETE_ROADMAP.md](COMPLETE_ROADMAP.md) (30 min)
-   - Understand phase timeline
-   - See effort estimates
-   - Decide stopping point
-2. Read [SECOND_PR_SCOPE.md](SECOND_PR_SCOPE.md) (30 min)
-   - Understand what Phase 3 looks like
-   - See implementation patterns
-3. Make decision: Will you do Phase 3, 4, 5, etc.?
-4. Create tickets/sprints for next phases
+### Option A: Implement SQLite (Recommended - 2-3 days)
+"I want fully local operation"
 
-**Result:** Full roadmap planned, team aligned on direction.
+1. Read [SQLITE_MIGRATION_PATH.md](SQLITE_MIGRATION_PATH.md)
+2. Implement SQLite adapter in `db-abstraction.ts`
+3. Implement local file storage in `storage.ts`
+4. Test with `APP_MODE=local`
+5. Ship Phase 4 PR
+
+**Result:** Fully local, offline-capable, no cloud dependencies.
 
 ---
 
-### Option D: Implement Everything (1-2 weeks total)
-"I want to go all the way to SQLite + local storage"
+### Option B: Review Current State (1 hour)
+"I want to understand what was achieved"
 
-1. **Week 1:**
-   - Merge Phase 1-2 (first PR) ← Use FIRST_PR_SUMMARY.md
-   - Implement Phase 3 (second PR) ← Use SECOND_PR_SCOPE.md
-   - Implement Phase 4 (SQLite) ← See COMPLETE_ROADMAP.md Phase 4 section
+1. Read [SECOND_PR_SCOPE.md](SECOND_PR_SCOPE.md) 
+2. Compare Phase 1-2 vs Phase 3
+3. See how routes were refactored
+4. Decide next steps
 
-2. **Week 2:**
+**Result:** Full understanding of current architecture.
+
+---
+
+### Option C: Add Frontend API Integration (Optional - 2-4 hours)
+"I want the frontend to use backend API not Supabase"
+
+1. Update `frontend/src/contexts/UserProfileContext.tsx`
+2. Replace `supabase.from("user_profiles")` with `fetch("/api/user/profile")`
+3. Test profile load/update flows
+
+**Result:** Complete decoupling from Supabase on frontend too.
    - Implement Phase 5 (local storage)
    - Test end-to-end
    - Deploy locally
