@@ -4,6 +4,7 @@ import { createServerSupabase } from "../lib/supabase";
 import { buildContentDisposition, downloadFile } from "../lib/storage";
 import { verifyDownload } from "../lib/downloadTokens";
 import { ensureDocAccess } from "../lib/access";
+import { getDocumentVersionByStoragePath, getDocument } from "../lib/db-abstraction";
 
 export const downloadsRouter = Router();
 
@@ -26,34 +27,16 @@ downloadsRouter.get("/:token", requireAuth, async (req, res) => {
         return void res.status(404).json({ detail: "Invalid link" });
 
     const db = createServerSupabase();
-    let version:
-        | {
-              id: string;
-              document_id: string;
-          }
-        | null = null;
-
-    const { data: byStoragePath } = await db
-        .from("document_versions")
-        .select("id, document_id")
-        .eq("storage_path", info.path)
-        .maybeSingle();
-    if (byStoragePath) {
-        version = byStoragePath as { id: string; document_id: string };
-    }
-
+    
+    const version = await getDocumentVersionByStoragePath(info.path, db);
     if (!version)
         return void res.status(404).json({ detail: "File not found" });
 
-    const { data: doc } = await db
-        .from("documents")
-        .select("id, user_id, project_id")
-        .eq("id", version.document_id)
-        .single();
+    const doc = await getDocument((version as any).document_id, db);
     if (!doc)
         return void res.status(404).json({ detail: "File not found" });
 
-    const access = await ensureDocAccess(doc, userId, userEmail, db);
+    const access = await ensureDocAccess(doc as any, userId, userEmail, db);
     if (!access.ok)
         return void res.status(404).json({ detail: "File not found" });
 

@@ -13,6 +13,12 @@ import {
 } from "../lib/chatTools";
 import { getUserApiKeys } from "../lib/userSettings";
 import { checkProjectAccess } from "../lib/access";
+import {
+    getChat,
+    createChat,
+    insertChatMessage,
+    updateChatTitle,
+} from "../lib/db-abstraction";
 
 const PROJECT_SYSTEM_PROMPT_EXTRA = `PROJECT CONTEXT:
 You are operating within a project folder that contains a collection of legal documents the user has organised for a single matter. The user's questions will usually refer to one or more documents in this project — your job is to find the relevant files to work on. Use list_documents to see what is available and fetch_documents / read_document to pull in any documents you need before answering.
@@ -54,39 +60,31 @@ projectChatRouter.post("/", requireAuth, async (req, res) => {
     let chatTitle: string | null = null;
 
     if (chatId) {
-        const { data: existing } = await db
-            .from("chats")
-            .select("id, title, project_id")
-            .eq("id", chatId)
-            .single();
-        const canUse = !!existing && existing.project_id === projectId;
+        const existing = await getChat(chatId, db);
+        const canUse = !!existing && (existing as any).project_id === projectId;
         if (!canUse) chatId = null;
-        else chatTitle = existing!.title;
+        else chatTitle = (existing as any).title;
     }
 
     if (!chatId) {
-        const { data: newChat, error } = await db
-            .from("chats")
-            .insert({ user_id: userId, project_id: projectId })
-            .select("id, title")
-            .single();
-        if (error || !newChat)
+        const newChat = await createChat(userId, projectId, db);
+        if (!newChat)
             return void res
                 .status(500)
                 .json({ detail: "Failed to create chat" });
         chatId = newChat.id as string;
-        chatTitle = newChat.title;
+        chatTitle = (newChat as any).title;
     }
 
     const lastUser = [...messages].reverse().find((m) => m.role === "user");
     if (lastUser) {
-        await db.from("chat_messages").insert({
+        await insertChatMessage({
             chat_id: chatId,
             role: "user",
             content: lastUser.content,
             files: lastUser.files ?? null,
             workflow: lastUser.workflow ?? null,
-        });
+        }, db);
     }
 
     const { docIndex, docStore, folderPaths } = await buildProjectDocContext(
@@ -172,18 +170,15 @@ projectChatRouter.post("/", requireAuth, async (req, res) => {
         });
 
         const annotations = extractAnnotations(fullText, docIndex, events);
-        await db.from("chat_messages").insert({
+        await insertChatMessage({
             chat_id: chatId,
             role: "assistant",
             content: events.length ? events : null,
             annotations: annotations.length ? annotations : null,
-        });
+        }, db);
 
         if (!chatTitle && lastUser?.content) {
-            await db
-                .from("chats")
-                .update({ title: lastUser.content.slice(0, 120) })
-                .eq("id", chatId);
+            await updateChatTitle(chatId, lastUser.content.slice(0, 120), db);
         }
     } catch (err) {
         console.error("[project-chat/stream] error:", err);

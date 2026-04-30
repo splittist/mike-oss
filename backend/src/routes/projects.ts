@@ -3,6 +3,22 @@ import { requireAuth } from "../middleware/auth";
 import { createServerSupabase } from "../lib/supabase";
 import { createClient } from "@supabase/supabase-js";
 import {
+  listProjectsByUser,
+  listSharedProjects,
+  countDocumentsInProject,
+  countChatsInProject,
+  countReviewsInProject,
+  createProject,
+  getProject,
+  updateProject,
+  deleteProject,
+  listDocumentsByProjectAsc,
+  listProjectSubfolders,
+  getUserProfilesByIds,
+  listChatsByProject,
+  getDocumentByOwner,
+} from "../lib/db-abstraction";
+import {
   attachActiveVersionPaths,
   attachLatestVersionNumbers,
 } from "../lib/documentVersions";
@@ -20,51 +36,29 @@ projectsRouter.get("/", requireAuth, async (req, res) => {
   const userEmail = res.locals.userEmail as string;
   const db = createServerSupabase();
 
-  const { data: ownProjects, error: ownError } = await db
-    .from("projects")
-    .select("*")
-    .eq("user_id", userId)
-    .order("created_at", { ascending: false });
-  if (ownError) return void res.status(500).json({ detail: ownError.message });
+  const [ownProjects, sharedProjects] = await Promise.all([
+    listProjectsByUser(userId, db),
+    userEmail ? listSharedProjects(userEmail, userId, db) : Promise.resolve([]),
+  ]);
 
-  const { data: sharedProjects, error: sharedError } = userEmail
-    ? await db
-        .from("projects")
-        .select("*")
-        .contains("shared_with", [userEmail])
-        .neq("user_id", userId)
-        .order("created_at", { ascending: false })
-    : { data: [], error: null };
-  if (sharedError)
-    return void res.status(500).json({ detail: sharedError.message });
-
-  const projects = [...(ownProjects ?? []), ...(sharedProjects ?? [])].sort(
+  const projects = [...ownProjects, ...sharedProjects].sort(
     (a, b) =>
       new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
   );
 
   const result = await Promise.all(
     projects.map(async (p) => {
-      const [docs, chats, reviews] = await Promise.all([
-        db
-          .from("documents")
-          .select("id", { count: "exact", head: true })
-          .eq("project_id", p.id),
-        db
-          .from("chats")
-          .select("id", { count: "exact", head: true })
-          .eq("project_id", p.id),
-        db
-          .from("tabular_reviews")
-          .select("id", { count: "exact", head: true })
-          .eq("project_id", p.id),
+      const [doc_count, chat_count, review_count] = await Promise.all([
+        countDocumentsInProject(p.id, db),
+        countChatsInProject(p.id, db),
+        countReviewsInProject(p.id, db),
       ]);
       return {
         ...p,
         is_owner: p.user_id === userId,
-        document_count: docs.count ?? 0,
-        chat_count: chats.count ?? 0,
-        review_count: reviews.count ?? 0,
+        document_count: doc_count,
+        chat_count: chat_count,
+        review_count: review_count,
       };
     }),
   );
@@ -83,18 +77,9 @@ projectsRouter.post("/", requireAuth, async (req, res) => {
     return void res.status(400).json({ detail: "name is required" });
 
   const db = createServerSupabase();
-  const { data, error } = await db
-    .from("projects")
-    .insert({
-      user_id: userId,
-      name: name.trim(),
-      cm_number: cm_number ?? null,
-      shared_with: shared_with ?? [],
-    })
-    .select("*")
-    .single();
-  if (error) return void res.status(500).json({ detail: error.message });
-  res.status(201).json({ ...data, documents: [] });
+  const project = await createProject(userId, name, cm_number, shared_with, db);
+  if (!project) return void res.status(500).json({ detail: "Failed to create project" });
+  res.status(201).json({ ...project, documents: [] });
 });
 
 // GET /projects/:projectId
@@ -104,12 +89,8 @@ projectsRouter.get("/:projectId", requireAuth, async (req, res) => {
   const { projectId } = req.params;
   const db = createServerSupabase();
 
-  const { data: project, error } = await db
-    .from("projects")
-    .select("*")
-    .eq("id", projectId)
-    .single();
-  if (error || !project)
+  const project = await getProject(projectId, db);
+  if (!project)
     return void res.status(404).json({ detail: "Project not found" });
 
   const canAccess =
@@ -120,11 +101,11 @@ projectsRouter.get("/:projectId", requireAuth, async (req, res) => {
   if (!canAccess)
     return void res.status(404).json({ detail: "Project not found" });
 
-  const [{ data: docs }, { data: folderData }] = await Promise.all([
-    db.from("documents").select("*").eq("project_id", projectId).order("created_at", { ascending: true }),
-    db.from("project_subfolders").select("*").eq("project_id", projectId).order("created_at", { ascending: true }),
+  const [docs, folderData] = await Promise.all([
+    listDocumentsByProjectAsc(projectId, db),
+    listProjectSubfolders(projectId, db),
   ]);
-  const docsTyped = (docs ?? []) as unknown as {
+  const docsTyped = docs as unknown as {
     id: string;
     current_version_id?: string | null;
   }[];
@@ -134,7 +115,7 @@ projectsRouter.get("/:projectId", requireAuth, async (req, res) => {
     ...project,
     is_owner: project.user_id === userId,
     documents: docsTyped,
-    folders: folderData ?? [],
+    folders: folderData,
   });
 });
 
@@ -195,17 +176,12 @@ projectsRouter.get("/:projectId/people", requireAuth, async (req, res) => {
     string,
     { display_name: string | null; organisation: string | null }
   >();
-  if (profileIds.length > 0) {
-    const { data: profiles } = await db
-      .from("user_profiles")
-      .select("user_id, display_name, organisation")
-      .in("user_id", profileIds);
-    for (const p of profiles ?? []) {
-      profileByUserId.set(p.user_id as string, {
-        display_name: (p.display_name as string | null) ?? null,
-        organisation: (p.organisation as string | null) ?? null,
-      });
-    }
+  const profiles = await getUserProfilesByIds(profileIds, db);
+  for (const p of profiles) {
+    profileByUserId.set(p.user_id as string, {
+      display_name: (p.display_name as string | null) ?? null,
+      organisation: (p.organisation as string | null) ?? null,
+    });
   }
 
   const ownerInfo = userById.get(project.user_id as string);
@@ -248,26 +224,20 @@ projectsRouter.patch("/:projectId", requireAuth, async (req, res) => {
   }
 
   const db = createServerSupabase();
-  const { data, error } = await db
-    .from("projects")
-    .update({ ...updates, updated_at: new Date().toISOString() })
-    .eq("id", projectId)
-    .eq("user_id", userId)
-    .select("*")
-    .single();
-  if (error || !data)
+  const data = await updateProject(projectId, userId, updates, db);
+  if (!data)
     return void res.status(404).json({ detail: "Project not found" });
 
-  const [{ data: docs }, { data: folderData }] = await Promise.all([
-    db.from("documents").select("*").eq("project_id", projectId).order("created_at", { ascending: true }),
-    db.from("project_subfolders").select("*").eq("project_id", projectId).order("created_at", { ascending: true }),
+  const [docs, folderData] = await Promise.all([
+    listDocumentsByProjectAsc(projectId, db),
+    listProjectSubfolders(projectId, db),
   ]);
-  const docsTyped = (docs ?? []) as unknown as {
+  const docsTyped = docs as unknown as {
     id: string;
     current_version_id?: string | null;
   }[];
   await attachActiveVersionPaths(db, docsTyped);
-  res.json({ ...data, documents: docsTyped, folders: folderData ?? [] });
+  res.json({ ...data, documents: docsTyped, folders: folderData });
 });
 
 // DELETE /projects/:projectId
@@ -275,12 +245,8 @@ projectsRouter.delete("/:projectId", requireAuth, async (req, res) => {
   const userId = res.locals.userId as string;
   const { projectId } = req.params;
   const db = createServerSupabase();
-  const { error } = await db
-    .from("projects")
-    .delete()
-    .eq("id", projectId)
-    .eq("user_id", userId);
-  if (error) return void res.status(500).json({ detail: error.message });
+  const ok = await deleteProject(projectId, userId, db);
+  if (!ok) return void res.status(500).json({ detail: "Failed to delete project" });
   res.status(204).send();
 });
 
@@ -295,17 +261,14 @@ projectsRouter.get("/:projectId/documents", requireAuth, async (req, res) => {
   if (!access.ok)
     return void res.status(404).json({ detail: "Project not found" });
 
-  const { data: docs } = await db
-    .from("documents")
-    .select("*")
-    .eq("project_id", projectId)
-    .order("created_at", { ascending: true });
-  const docsTyped = (docs ?? []) as unknown as {
+  const rawDocs = await listDocumentsByProjectAsc(projectId, db);
+  const docsForRoute = rawDocs as unknown as {
     id: string;
     current_version_id?: string | null;
   }[];
-  await attachActiveVersionPaths(db, docsTyped);
-  res.json(docsTyped);
+  await attachLatestVersionNumbers(db, docsForRoute);
+  await attachActiveVersionPaths(db, docsForRoute);
+  res.json(docsForRoute);
 });
 
 // POST /projects/:projectId/documents/:documentId — assign or copy existing doc into project
@@ -325,12 +288,7 @@ projectsRouter.post(
     // Adding-by-id pulls a doc into the project — only the doc's owner
     // is allowed to do that, so other people's standalone docs can't be
     // siphoned into a project the requester happens to share.
-    const { data: doc } = await db
-      .from("documents")
-      .select("*")
-      .eq("id", documentId)
-      .eq("user_id", userId)
-      .single();
+    const doc = await getDocumentByOwner(documentId, userId, db);
     if (!doc)
       return void res.status(404).json({ detail: "Document not found" });
 
@@ -471,13 +429,8 @@ projectsRouter.get("/:projectId/chats", requireAuth, async (req, res) => {
   if (!access.ok)
     return void res.status(404).json({ detail: "Project not found" });
 
-  const { data, error } = await db
-    .from("chats")
-    .select("*")
-    .eq("project_id", projectId)
-    .order("created_at", { ascending: false });
-  if (error) return void res.status(500).json({ detail: error.message });
-  res.json(data ?? []);
+  const chats = await listChatsByProject(projectId, db);
+  res.json(chats);
 });
 
 // ── Folder routes ─────────────────────────────────────────────────────────────

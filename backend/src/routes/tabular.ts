@@ -17,6 +17,18 @@ import {
     ensureReviewAccess,
     listAccessibleProjectIds,
 } from "../lib/access";
+import {
+    listTabularReviewsByUser,
+    getTabularReview,
+    insertTabularReview,
+    insertTabularCells,
+    updateTabularReview,
+    deleteTabularReview,
+    listTabularCellsByReview,
+    listTabularCellKeysForReview,
+    deleteTabularCellsForDocs,
+    countDocumentsByReviewIds,
+} from "../lib/db-abstraction";
 
 function formatPromptSuffix(format?: string, tags?: string[]): string {
     switch (format) {
@@ -192,21 +204,16 @@ tabularRouter.post("/", requireAuth, async (req, res) => {
         if (!access.ok)
             return void res.status(404).json({ detail: "Project not found" });
     }
-    const { data: review, error } = await db
-        .from("tabular_reviews")
-        .insert({
-            user_id: userId,
-            title: title ?? null,
-            columns_config,
-            project_id: project_id ?? null,
-            workflow_id: workflow_id ?? null,
-        })
-        .select("*")
-        .single();
-    if (error || !review)
-        return void res
-            .status(500)
-            .json({ detail: error?.message ?? "Failed to create review" });
+    
+    const review = await insertTabularReview({
+        user_id: userId,
+        title: title ?? null,
+        columns_config,
+        project_id: project_id ?? null,
+        workflow_id: workflow_id ?? null,
+    }, db);
+    if (!review)
+        return void res.status(500).json({ detail: "Failed to create review" });
 
     const cells = document_ids.flatMap((docId) =>
         columns_config.map((col) => ({
@@ -216,7 +223,7 @@ tabularRouter.post("/", requireAuth, async (req, res) => {
             status: "pending",
         })),
     );
-    if (cells.length) await db.from("tabular_cells").insert(cells);
+    if (cells.length) await insertTabularCells(cells, db);
 
     res.status(201).json(review);
 });
@@ -299,30 +306,23 @@ tabularRouter.get("/:reviewId", requireAuth, async (req, res) => {
     const { reviewId } = req.params;
     const db = createServerSupabase();
 
-    const { data: review, error } = await db
-        .from("tabular_reviews")
-        .select("*")
-        .eq("id", reviewId)
-        .single();
-    if (error || !review)
+    const review = await getTabularReview(reviewId, db);
+    if (!review)
         return void res.status(404).json({ detail: "Review not found" });
-    const access = await ensureReviewAccess(review, userId, userEmail, db);
+    const access = await ensureReviewAccess(review as any, userId, userEmail, db);
     if (!access.ok)
         return void res.status(404).json({ detail: "Review not found" });
 
-    const { data: cells } = await db
-        .from("tabular_cells")
-        .select("*")
-        .eq("review_id", reviewId);
-    const docIds = [...new Set((cells ?? []).map((c) => c.document_id))];
+    const cells = await listTabularCellsByReview(reviewId, db);
+    const docIds = [...new Set((cells ?? []).map((c) => (c as any).document_id))];
     const docsResult =
         docIds.length > 0
             ? await db.from("documents").select("*").in("id", docIds)
-            : review.project_id
+            : (review as any).project_id
               ? await db
                     .from("documents")
                     .select("*")
-                    .eq("project_id", review.project_id)
+                    .eq("project_id", (review as any).project_id)
                     .order("created_at", { ascending: true })
               : { data: [] as Record<string, unknown>[] };
 
@@ -330,7 +330,7 @@ tabularRouter.get("/:reviewId", requireAuth, async (req, res) => {
         review: { ...review, is_owner: access.isOwner },
         cells: (cells ?? []).map((cell) => ({
             ...cell,
-            content: parseCellContent(cell.content),
+            content: parseCellContent((cell as any).content),
         })),
         documents: docsResult.data ?? [],
     });
@@ -446,15 +446,11 @@ tabularRouter.patch("/:reviewId", requireAuth, async (req, res) => {
     updates.updated_at = new Date().toISOString();
 
     const db = createServerSupabase();
-    const { data: existingReview, error: reviewError } = await db
-        .from("tabular_reviews")
-        .select("*")
-        .eq("id", reviewId)
-        .single();
-    if (reviewError || !existingReview)
+    const existingReview = await getTabularReview(reviewId, db);
+    if (!existingReview)
         return void res.status(404).json({ detail: "Review not found" });
     const access = await ensureReviewAccess(
-        existingReview,
+        existingReview as any,
         userId,
         userEmail,
         db,
@@ -469,28 +465,20 @@ tabularRouter.patch("/:reviewId", requireAuth, async (req, res) => {
         updates.shared_with = sharedWithUpdate;
     }
 
-    const { data: updatedReview, error: updateError } = await db
-        .from("tabular_reviews")
-        .update(updates)
-        .eq("id", reviewId)
-        .select("*")
-        .single();
-    if (updateError || !updatedReview)
+    const updatedReview = await updateTabularReview(reviewId, updates, db);
+    if (!updatedReview)
         return void res.status(500).json({
-            detail: updateError?.message ?? "Failed to update review",
+            detail: "Failed to update review",
         });
 
     if (
         Array.isArray(req.body.columns_config) ||
         Array.isArray(req.body.document_ids)
     ) {
-        const { data: existingCells } = await db
-            .from("tabular_cells")
-            .select("document_id,column_index")
-            .eq("review_id", reviewId);
+        const existingCells = await listTabularCellKeysForReview(reviewId, db);
         const existingKeys = new Set(
             (existingCells ?? []).map(
-                (cell) => `${cell.document_id}:${cell.column_index}`,
+                (cell) => `${(cell as any).document_id}:${(cell as any).column_index}`,
             ),
         );
 
@@ -500,22 +488,14 @@ tabularRouter.patch("/:reviewId", requireAuth, async (req, res) => {
             // document_ids is the new source of truth — delete removed docs' cells
             const newDocIds = req.body.document_ids as string[];
             const existingDocIds = (existingCells ?? []).map(
-                (cell) => cell.document_id,
+                (cell) => (cell as any).document_id,
             );
             const removedDocIds = existingDocIds.filter(
                 (id) => !newDocIds.includes(id),
             );
 
             if (removedDocIds.length > 0) {
-                const { error: deleteError } = await db
-                    .from("tabular_cells")
-                    .delete()
-                    .eq("review_id", reviewId)
-                    .in("document_id", removedDocIds);
-                if (deleteError)
-                    return void res
-                        .status(500)
-                        .json({ detail: deleteError.message });
+                await deleteTabularCellsForDocs(reviewId, removedDocIds, db);
             }
 
             documentIds = newDocIds;
@@ -523,21 +503,21 @@ tabularRouter.patch("/:reviewId", requireAuth, async (req, res) => {
             // No document change — derive from existing cells
             documentIds = [
                 ...new Set(
-                    (existingCells ?? []).map((cell) => cell.document_id),
+                    (existingCells ?? []).map((cell) => (cell as any).document_id),
                 ),
             ];
-            if (documentIds.length === 0 && existingReview.project_id) {
+            if (documentIds.length === 0 && (existingReview as any).project_id) {
                 const { data: projectDocs } = await db
                     .from("documents")
                     .select("id")
-                    .eq("project_id", existingReview.project_id);
-                documentIds = (projectDocs ?? []).map((doc) => doc.id);
+                    .eq("project_id", (existingReview as any).project_id);
+                documentIds = (projectDocs ?? []).map((doc: any) => doc.id);
             }
         }
 
         const activeColumns = Array.isArray(req.body.columns_config)
             ? req.body.columns_config
-            : (updatedReview.columns_config ?? []);
+            : ((updatedReview as any).columns_config ?? []);
         const newCells = documentIds.flatMap((documentId) =>
             activeColumns
                 .filter(
@@ -553,13 +533,7 @@ tabularRouter.patch("/:reviewId", requireAuth, async (req, res) => {
         );
 
         if (newCells.length > 0) {
-            const { error: insertError } = await db
-                .from("tabular_cells")
-                .insert(newCells);
-            if (insertError)
-                return void res
-                    .status(500)
-                    .json({ detail: insertError.message });
+            await insertTabularCells(newCells, db);
         }
     }
 
@@ -571,12 +545,14 @@ tabularRouter.delete("/:reviewId", requireAuth, async (req, res) => {
     const userId = res.locals.userId as string;
     const { reviewId } = req.params;
     const db = createServerSupabase();
-    const { error } = await db
-        .from("tabular_reviews")
-        .delete()
-        .eq("id", reviewId)
-        .eq("user_id", userId);
-    if (error) return void res.status(500).json({ detail: error.message });
+    
+    // Verify ownership before deleting
+    const review = await getTabularReview(reviewId, db);
+    if (!review || (review as any).user_id !== userId)
+        return void res.status(404).json({ detail: "Review not found" });
+    
+    const ok = await deleteTabularReview(reviewId, db);
+    if (!ok) return void res.status(500).json({ detail: "Failed to delete review" });
     res.status(204).send();
 });
 
