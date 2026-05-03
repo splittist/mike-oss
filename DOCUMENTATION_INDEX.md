@@ -18,11 +18,17 @@
 **What:** Current project state and what's been accomplished  
 **Read when:** You want to know what's done and what's next  
 **Time:** 15 minutes  
-**Contains:** Phase 1-3 summary, time estimates, recommendations
+**Contains:** Phases 1-4 summary, current architecture, recommended next steps
+
+#### [SMOKE_TEST.md](SMOKE_TEST.md)
+**What:** Repeatable validation checklist for local mode  
+**Read when:** You want to verify the app is working correctly after changes  
+**Time:** 30-60 minutes (to run through)  
+**Contains:** Startup checks, per-feature test steps, persistence and storage verification
 
 #### [PHASE4_VISION.md](PHASE4_VISION.md)
-**What:** What you'll have after Phase 4 is complete  
-**Read when:** You want inspiration and context for Phase 4  
+**What:** What the app looks like now that Phase 4 is complete  
+**Read when:** You want a product-level overview of the local-first architecture  
 **Time:** 10 minutes  
 **Contains:** End result, benefits, deployment options, use cases
 
@@ -243,9 +249,10 @@ MIGRATION_CHECKLIST.md (tracks status)
 | Document | Main Takeaway |
 |----------|---------------|
 | START_HERE.md | How to run the project locally |
-| CURRENT_STATUS.md | Phase 3 complete, Phase 4 ready (14-18 hours) |
-| PHASE4_VISION.md | Phase 4 creates fully offline, zero-dependency app |
-| QUICK_START_PHASE4.md | 8 steps to Phase 4, TL;DR format |
+| CURRENT_STATUS.md | Phases 1-4 complete; app runs fully local with SQLite |
+| SMOKE_TEST.md | Repeatable checklist to verify local mode is working |
+| PHASE4_VISION.md | Phase 4 achieved: fully offline, zero-dependency app |
+| QUICK_START_PHASE4.md | 8 steps to Phase 4, TL;DR format (historical reference) |
 | SQLITE_MIGRATION_PATH.md | Complete implementation guide with schema |
 | ARCHITECTURE_CHANGES.md | System design across all phases |
 | COMPLETE_ROADMAP.md | Full project vision through Phase 7 |
@@ -257,13 +264,13 @@ MIGRATION_CHECKLIST.md (tracks status)
 
 ## 🚀 Quick Links
 
-**Just want to code?**
-→ [QUICK_START_PHASE4.md](QUICK_START_PHASE4.md)
+**Want to validate the app works?**
+→ [SMOKE_TEST.md](SMOKE_TEST.md)
 
-**Need detailed guide?**
+**Need implementation details?**
 → [SQLITE_MIGRATION_PATH.md](SQLITE_MIGRATION_PATH.md)
 
-**Want inspiration?**
+**Want to understand what was built?**
 → [PHASE4_VISION.md](PHASE4_VISION.md)
 
 **Need status?**
@@ -279,15 +286,13 @@ MIGRATION_CHECKLIST.md (tracks status)
 
 ## 📝 Document Maintenance
 
-Last updated: April 30, 2026
+Last updated: May 3, 2026
 
 **Status:**
 - ✅ All documents current
-- ✅ Phase 3 complete and documented
-- ✅ Phase 4 implementation ready
+- ✅ Phases 1-4 complete and documented
+- ✅ App runs fully local (SQLite + local filesystem)
 - ✅ Navigation complete
-
-**Next update:** After Phase 4 completion (mark ✅ COMPLETE)
 
 ---
 
