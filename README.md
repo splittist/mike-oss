@@ -20,6 +20,22 @@ npm install --prefix backend
 npm install --prefix frontend
 ```
 
+### One-command startup
+
+**macOS / Linux:**
+```bash
+./start-local.sh
+```
+
+**Windows (PowerShell):**
+```powershell
+.\start-local.ps1
+```
+
+Both scripts install dependencies (if missing), start the backend on `http://localhost:3001` with `APP_MODE=local`, and start the frontend on `http://localhost:3000`. Press Ctrl+C to stop both.
+
+### Manual startup (two terminals)
+
 Start the backend in local mode:
 
 ```powershell
@@ -82,6 +98,7 @@ npm run lint --prefix frontend
 | [CURRENT_STATUS.md](CURRENT_STATUS.md) | Where things stand today and recommended next steps |
 | [COMPLETE_ROADMAP.md](COMPLETE_ROADMAP.md) | Full phase-by-phase roadmap with completion status |
 | [START_HERE.md](START_HERE.md) | Onboarding entry point and quick run instructions |
+| [SMOKE_TEST.md](SMOKE_TEST.md) | Repeatable checklist for validating local mode |
 | [SQLITE_MIGRATION_PATH.md](SQLITE_MIGRATION_PATH.md) | SQLite implementation reference and patterns |
 | [ARCHITECTURE_CHANGES.md](ARCHITECTURE_CHANGES.md) | Architectural decisions and abstractions |
 

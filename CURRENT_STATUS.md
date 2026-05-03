@@ -60,14 +60,28 @@ Schema simplification for single-user maintenance:
 - collapse profile/settings structures
 - simplify ownership/access checks
 
-### Option C: Improve Dev Experience
-- Add one-command local startup script (frontend + backend)
-- Expand smoke test checklist into repeatable validation steps
-- Update remaining docs that still describe Phase 4 as pending
+### Option C: Improve Dev Experience ✅ Done
+- One-command local startup scripts added (`start-local.sh` / `start-local.ps1`)
+- Smoke test checklist expanded into repeatable validation steps (`SMOKE_TEST.md`)
+- Remaining docs updated to reflect Phase 4 as complete
 
 ---
 
 ## Quick Run Commands
+
+### One-command (recommended)
+
+```bash
+# macOS / Linux
+./start-local.sh
+
+# Windows PowerShell
+.\start-local.ps1
+```
+
+Both scripts start the backend (port 3001) and frontend (port 3000) together. Press Ctrl+C to stop both.
+
+### Manual (two terminals)
 
 ```bash
 # Backend (local mode)
